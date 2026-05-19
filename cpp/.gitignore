@@ -1,0 +1,23 @@
+# Meson / Ninja build output
+build/
+.cache/
+compile_commands.json
+
+# C / C++ artifacts
+*.o
+*.obj
+*.a
+*.dylib
+*.dll
+*.exe
+*.so
+*.so.*
+*.dSYM/
+
+# Local/editor files
+.DS_Store
+.#*
+*.swp
+*.swo
+*~
+*.log

@@ -1,0 +1,55 @@
+# macOS / editor files
+.DS_Store
+*.swp
+*.swo
+*~
+.#*
+.idea/
+.vscode/
+
+# Logs and local environment
+*.log
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# C / C++ build artifacts
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+*.o
+*.obj
+*.a
+*.dylib
+*.dll
+*.exe
+*.so
+*.so.*
+*.dSYM/
+
+# Project-generated data/artifacts
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.onnx
+*.pt
+*.engine
+runs/
+outputs/
+data/

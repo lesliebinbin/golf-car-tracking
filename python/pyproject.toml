@@ -1,0 +1,21 @@
+[project]
+name = "golfcar_tracker_python"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pybind11>=3.0.4",
+    "streamlit>=1.57.0",
+    "ultralytics>=8.4.51",
+]
+
+[dependency-groups]
+dev = [
+    "black>=26.5.1",
+    "ipykernel>=7.2.0",
+    "ipython>=9.13.0",
+    "jupyter>=1.1.1",
+    "nbconvert>=7.17.1",
+    "opencv-python>=4.13.0.92",
+]

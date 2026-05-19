@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv
+
+# Native extension build outputs copied from cpp/
+*.so
+*.pyd
+*.dll
+
+# Local app artifacts
+.env
+.env.*
+!.env.example
+*.log
+runs/
+outputs/
