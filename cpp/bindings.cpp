@@ -207,61 +207,6 @@ static cv::Size parse_target_size(py::object target_size) {
   return size;
 }
 
-namespace pybind11 {
-namespace detail {
-template <> struct type_caster<cv::Scalar> {
-public:
-  PYBIND11_TYPE_CASTER(cv::Scalar, _("cv::Scalar"));
-
-  // Python -> C++: 从 tuple/list 转换
-  bool load(handle src, bool) {
-    if (!src)
-      return false;
-
-    // 处理 None
-    if (src.is_none()) {
-      value = cv::Scalar(0, 0, 0, 0);
-      return true;
-    }
-
-    // 处理 tuple 或 list
-    if (py::isinstance<py::tuple>(src) || py::isinstance<py::list>(src)) {
-      auto seq = py::reinterpret_borrow<py::sequence>(src);
-      size_t size = seq.size();
-
-      // 默认值
-      value = cv::Scalar(0, 0, 0, 0);
-
-      if (size > 0)
-        value[0] = seq[0].cast<double>();
-      if (size > 1)
-        value[1] = seq[1].cast<double>();
-      if (size > 2)
-        value[2] = seq[2].cast<double>();
-      if (size > 3)
-        value[3] = seq[3].cast<double>();
-
-      return true;
-    }
-
-    // 处理单个数字（所有通道相同）
-    if (py::isinstance<py::int_>(src) || py::isinstance<py::float_>(src)) {
-      double val = src.cast<double>();
-      value = cv::Scalar(val, val, val, val);
-      return true;
-    }
-
-    return false;
-  }
-
-  // C++ -> Python: 转换为 tuple
-  static handle cast(cv::Scalar src, return_value_policy, handle) {
-    return py::make_tuple(src[0], src[1], src[2], src[3]).release();
-  }
-};
-} // namespace detail
-} // namespace pybind11
-
 PYBIND11_MODULE(golf_backend, m) {
   m.doc() = "GolfCar Tracker C++ Backend Acceleration";
 
@@ -380,3 +325,58 @@ PYBIND11_MODULE(golf_backend, m) {
       });
 
 }
+
+namespace pybind11 {
+namespace detail {
+template <> struct type_caster<cv::Scalar> {
+public:
+  PYBIND11_TYPE_CASTER(cv::Scalar, _("cv::Scalar"));
+
+  // Python -> C++: 从 tuple/list 转换
+  bool load(handle src, bool) {
+    if (!src)
+      return false;
+
+    // 处理 None
+    if (src.is_none()) {
+      value = cv::Scalar(0, 0, 0, 0);
+      return true;
+    }
+
+    // 处理 tuple 或 list
+    if (py::isinstance<py::tuple>(src) || py::isinstance<py::list>(src)) {
+      auto seq = py::reinterpret_borrow<py::sequence>(src);
+      size_t size = seq.size();
+
+      // 默认值
+      value = cv::Scalar(0, 0, 0, 0);
+
+      if (size > 0)
+        value[0] = seq[0].cast<double>();
+      if (size > 1)
+        value[1] = seq[1].cast<double>();
+      if (size > 2)
+        value[2] = seq[2].cast<double>();
+      if (size > 3)
+        value[3] = seq[3].cast<double>();
+
+      return true;
+    }
+
+    // 处理单个数字（所有通道相同）
+    if (py::isinstance<py::int_>(src) || py::isinstance<py::float_>(src)) {
+      double val = src.cast<double>();
+      value = cv::Scalar(val, val, val, val);
+      return true;
+    }
+
+    return false;
+  }
+
+  // C++ -> Python: 转换为 tuple
+  static handle cast(cv::Scalar src, return_value_policy, handle) {
+    return py::make_tuple(src[0], src[1], src[2], src[3]).release();
+  }
+};
+} // namespace detail
+} // namespace pybind11
