@@ -157,3 +157,41 @@ std::vector<cv::Mat> video_processing::extract_frames(const char *video_path,
 
   return frames;
 }
+
+video_processing::LetterBoxResult
+video_processing::ImageHandler::letterbox(const cv::Mat input_image,
+                                          cv::Size target_size) const {
+  const auto h = input_image.rows;
+  const auto w = input_image.cols;
+  const auto scale = std::min(static_cast<float>(target_size.width) / w,
+                              static_cast<float>(target_size.height) / h);
+  const auto new_w = std::round(w * scale);
+  const auto new_h = std::round(h * scale);
+  cv::Mat resized_image;
+  cv::resize(input_image, resized_image, cv::Size(new_w, new_h), 0, 0,
+             interpolation_flags);
+  cv::Mat output_image{target_size, input_image.type(), pad_color};
+  const auto pad_x =
+      static_cast<int>(std::round((target_size.width - new_w) / 2.0f - 0.1f));
+  const auto pad_y =
+      static_cast<int>(std::round((target_size.height - new_h) / 2.0f - 0.1f));
+  resized_image.copyTo(output_image(cv::Rect(pad_x, pad_y, new_w, new_h)));
+  return {
+      .image = output_image, .scale = scale, .pad_x = pad_x, .pad_y = pad_y};
+}
+
+cv::Mat video_processing::ImageHandler::letterbox_revert(
+    video_processing::LetterBoxResult letterbox_result) {
+  const auto output_image = letterbox_result.image;
+  const auto scale = letterbox_result.scale;
+  const auto pad_x = letterbox_result.pad_x;
+  const auto pad_y = letterbox_result.pad_y;
+  const auto new_w = output_image.cols - 2 * pad_x;
+  const auto new_h = output_image.rows - 2 * pad_y;
+  cv::Mat cropped_image = output_image(cv::Rect(pad_x, pad_y, new_w, new_h));
+  cv::Mat original_image;
+  cv::resize(cropped_image, original_image,
+             cv::Size(std::round(new_w / scale), std::round(new_h / scale)), 0,
+             0, interpolation_flags);
+  return original_image;
+}
