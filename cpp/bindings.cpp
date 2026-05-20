@@ -379,11 +379,4 @@ PYBIND11_MODULE(golf_backend, m) {
         }
       });
 
-  m.def(
-      "Scalar",
-      [](double v0, double v1, double v2, double v3) {
-        return cv::Scalar(v0, v1, v2, v3);
-      },
-      py::arg("v0") = 0, py::arg("v1") = 0, py::arg("v2") = 0,
-      py::arg("v3") = 0, "Create OpenCV Scalar (BGR order)");
 }
