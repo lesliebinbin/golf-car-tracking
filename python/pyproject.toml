@@ -5,7 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "onnxruntime-gpu>=1.26.0",
+    "onnxruntime-gpu>=1.26.0; sys_platform == 'linux'",
+    "onnxruntime>=1.26.0; sys_platform == 'darwin'",
     "pybind11>=3.0.4",
     "streamlit>=1.57.0",
     "ultralytics>=8.4.51",
