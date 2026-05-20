@@ -26,3 +26,5 @@ htmlcov/
 *.log
 runs/
 outputs/
+golf-car
+video_frames

@@ -30,13 +30,13 @@ private:
   int frame_count;
   int frame_interval;
   int max_frames;
-  int current_index;
+  int processed_count;
 
 public:
   FrameTickTracker(int frame_offset, int frame_interval, int max_frames)
       : frame_offset(std::max(0, frame_offset)), frame_count(0),
         frame_interval(std::max(1, frame_interval)),
-        max_frames(std::max(0, max_frames)), current_index(0) {}
+        max_frames(std::max(0, max_frames)), processed_count(0) {}
 
   tick_state tick() {
     if (frame_offset > 0) {
@@ -44,14 +44,15 @@ public:
       return TICK_CONTINUE;
     }
 
-    if (frame_count >= max_frames) {
+    if (processed_count >= max_frames) {
       return TICK_DONE;
     }
 
-    current_index = frame_count % frame_interval;
+    const int current_index = frame_count % frame_interval;
     ++frame_count;
 
     if (current_index == 0) {
+      ++processed_count;
       return TICK_PROCESS;
     }
 
