@@ -56,3 +56,13 @@ py3.extension_module('golf_backend',
   install : true,
   install_dir : join_paths(meson.current_source_dir(), '../python')
 )
+
+test_extract_sources = files('test_extracted_frames.cpp') + core_sources
+
+executable('test_extracted_frames',
+           sources : test_extract_sources,
+           include_directories : include_dirs,
+           dependencies : [opencv_dep],
+           cpp_args : extra_cpp_args,
+           install : false
+)

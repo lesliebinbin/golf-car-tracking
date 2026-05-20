@@ -17,6 +17,7 @@ dev = [
     "ipykernel>=7.2.0",
     "ipython>=9.13.0",
     "jupyter>=1.1.1",
+    "jupytext>=1.19.3",
     "nbconvert>=7.17.1",
     "opencv-python>=4.13.0.92",
 ]
