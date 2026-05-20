@@ -20,5 +20,10 @@ PYBIND11_MODULE(golf_backend, m) {
   m.doc() = "GolfCar Tracker C++ Backend Acceleration";
 
   m.def("check_env", &check_environment, "C++ Dependency Check Function");
-  m.def("play_video", &video_processing::play_video, "Play video with OpenCV", py::arg("video_path"));
+  m.def("play_video",
+        &video_processing::play_video,
+        "Play video with OpenCV",
+        py::arg("video_path"),
+        py::call_guard<py::gil_scoped_release>()
+        );
 }
