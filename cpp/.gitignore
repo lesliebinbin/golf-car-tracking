@@ -21,3 +21,7 @@ compile_commands.json
 *.swo
 *~
 *.log
+
+subprojects/*/
+
+!subprojects/*.wrap

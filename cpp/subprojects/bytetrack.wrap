@@ -1,0 +1,7 @@
+[wrap-git]
+url = https://github.com/lesliebinbin/ByteTrack-cpp.git
+revision = main
+depth = 1
+
+[provide]
+bytetrack = bytetrack_dep

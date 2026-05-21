@@ -33,6 +33,8 @@ opencv_dep = dependency('opencv4')
 onnxruntime_dep = dependency('onnxruntime')
 pybind11_dep = dependency('pybind11')
 yaml_cpp_dep = dependency('yaml-cpp')
+bytetrack_dep = dependency('bytetrack')
+yolos_cpp_dep = dependency('yolos_cpp')
 
 
 all_dependencies = [pybind11_dep, opencv_dep, onnxruntime_dep] + extra_deps

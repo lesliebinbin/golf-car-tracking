@@ -1,0 +1,7 @@
+[wrap-git]
+url = https://github.com/lesliebinbin/YOLOs-CPP
+revision = main
+depth = 1
+
+[provide]
+yolos_cpp = yolos_cpp_dep

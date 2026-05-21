@@ -5,7 +5,6 @@
 #include <filesystem>
 #include <format>
 #include <iostream>
-#include <numeric>
 #include <onnx.hpp>
 #include <opencv2/opencv.hpp>
 #include <stdexcept>
