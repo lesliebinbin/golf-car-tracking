@@ -124,8 +124,8 @@ static py::array extract_frames_py(const char *video_path, int frame_interval,
 
 static cv::Mat numpy_uint8_to_mat(py::handle input) {
   auto array =
-      py::array_t<std::uint8_t, py::array::c_style | py::array::forcecast>::
-          ensure(input);
+      py::array_t<std::uint8_t,
+                  py::array::c_style | py::array::forcecast>::ensure(input);
   if (!array) {
     throw std::runtime_error("input_image must be a uint8 NumPy array");
   }
@@ -174,9 +174,9 @@ static py::array_t<std::uint8_t> mat_to_numpy(const cv::Mat &mat) {
   }
 
   py::array_t<std::uint8_t> out(shape);
-  std::memcpy(out.mutable_data(), contiguous.data,
-              static_cast<std::size_t>(contiguous.total() *
-                                       contiguous.elemSize()));
+  std::memcpy(
+      out.mutable_data(), contiguous.data,
+      static_cast<std::size_t>(contiguous.total() * contiguous.elemSize()));
   return out;
 }
 
@@ -234,7 +234,7 @@ PYBIND11_MODULE(golf_backend, m) {
                      "Horizontal padding (width)")
       .def_readwrite("pad_y", &video_processing::LetterBoxResult::pad_y,
                      "Vertical padding (height)")
-      // 添加 Pythonic 的字符串表示
+      // Add Pythonic string representation.
       .def("__repr__",
            [](const video_processing::LetterBoxResult &r) {
              return py::str("<LetterBoxResult scale={:.3f}, pad=({}, {}), "
@@ -245,7 +245,7 @@ PYBIND11_MODULE(golf_backend, m) {
                              : py::str("({}, {})")
                                    .format(r.image.cols, r.image.rows));
            })
-      // 添加字典式访问（可选）
+      // Add dictionary-style access.
       .def(
           "to_dict",
           [](const video_processing::LetterBoxResult &r) {
@@ -259,16 +259,15 @@ PYBIND11_MODULE(golf_backend, m) {
           "Convert to dictionary for easy access");
 
   py::class_<video_processing::ImageHandler>(m, "ImageHandler")
-      // 构造函数
+      // Constructors.
       .def(py::init<>())
       .def(py::init<cv::InterpolationFlags, cv::Scalar>(),
            py::arg("interpolation_flags"), py::arg("pad_color"))
 
-      // letterbox - 使用 lambda 包装以接受 tuple/list/int
+      // Use a lambda wrapper to accept tuple/list/int target sizes.
       .def(
           "letterbox",
-          [](const video_processing::ImageHandler &self,
-             py::array input_image,
+          [](const video_processing::ImageHandler &self, py::array input_image,
              py::object target_size) -> video_processing::LetterBoxResult {
             cv::Mat input_mat = numpy_uint8_to_mat(input_image);
             cv::Size size = parse_target_size(target_size);
@@ -277,12 +276,13 @@ PYBIND11_MODULE(golf_backend, m) {
           py::arg("input_image"), py::arg("target_size"))
 
       // letterbox_revert
-      .def("letterbox_revert",
-           [](video_processing::ImageHandler &self,
-              video_processing::LetterBoxResult letterbox_result) {
-             return mat_to_numpy(self.letterbox_revert(letterbox_result));
-           },
-           py::arg("letterbox_result"))
+      .def(
+          "letterbox_revert",
+          [](video_processing::ImageHandler &self,
+             video_processing::LetterBoxResult letterbox_result) {
+            return mat_to_numpy(self.letterbox_revert(letterbox_result));
+          },
+          py::arg("letterbox_result"))
 
       // properties
       .def_property("interpolation_flags",
@@ -323,32 +323,28 @@ PYBIND11_MODULE(golf_backend, m) {
           return "UNKNOWN";
         }
       });
-
 }
 
-namespace pybind11 {
-namespace detail {
+namespace pybind11::detail {
 template <> struct type_caster<cv::Scalar> {
 public:
   PYBIND11_TYPE_CASTER(cv::Scalar, _("cv::Scalar"));
 
-  // Python -> C++: 从 tuple/list 转换
   bool load(handle src, bool) {
     if (!src)
       return false;
 
-    // 处理 None
     if (src.is_none()) {
       value = cv::Scalar(0, 0, 0, 0);
       return true;
     }
 
-    // 处理 tuple 或 list
+    // Handle tuple or list input.
     if (py::isinstance<py::tuple>(src) || py::isinstance<py::list>(src)) {
       auto seq = py::reinterpret_borrow<py::sequence>(src);
       size_t size = seq.size();
 
-      // 默认值
+      // Default value.
       value = cv::Scalar(0, 0, 0, 0);
 
       if (size > 0)
@@ -363,7 +359,6 @@ public:
       return true;
     }
 
-    // 处理单个数字（所有通道相同）
     if (py::isinstance<py::int_>(src) || py::isinstance<py::float_>(src)) {
       double val = src.cast<double>();
       value = cv::Scalar(val, val, val, val);
@@ -373,10 +368,8 @@ public:
     return false;
   }
 
-  // C++ -> Python: 转换为 tuple
   static handle cast(cv::Scalar src, return_value_policy, handle) {
     return py::make_tuple(src[0], src[1], src[2], src[3]).release();
   }
 };
-} // namespace detail
-} // namespace pybind11
+} // namespace pybind11::detail
