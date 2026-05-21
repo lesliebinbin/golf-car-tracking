@@ -32,6 +32,7 @@ endif
 opencv_dep = dependency('opencv4')
 onnxruntime_dep = dependency('onnxruntime')
 pybind11_dep = dependency('pybind11')
+yaml_cpp_dep = dependency('yaml-cpp')
 
 
 all_dependencies = [pybind11_dep, opencv_dep, onnxruntime_dep] + extra_deps
@@ -94,6 +95,16 @@ test_onnx_yolo_inference = executable('test_onnx_yolo_inference',
            sources : test_onnx_yolo_sources,
            include_directories : include_dirs,
            dependencies : [opencv_dep, onnxruntime_dep] + extra_deps,
+           cpp_args : extra_cpp_args,
+           install : false
+)
+
+movement_track_sources = files('movement_track.cpp') + onnx_core_sources + video_processing_core_sources
+
+movement_track = executable('movement_track',
+           sources : movement_track_sources,
+           include_directories : include_dirs,
+           dependencies : [opencv_dep, onnxruntime_dep, yaml_cpp_dep] + extra_deps,
            cpp_args : extra_cpp_args,
            install : false
 )
