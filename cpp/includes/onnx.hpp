@@ -6,6 +6,15 @@
 #include <vector>
 
 namespace onnx::yolo {
+// Ultralytics YOLO detection: x/y are box center coordinates.
+struct Detection {
+  float x;
+  float y;
+  float w;
+  float h;
+  int class_id;
+  float confidence;
+};
 class Runner {
 private:
   Ort::Env env;
@@ -24,5 +33,9 @@ public:
   explicit Runner(const char *model_path);
   Ort::Value run(const std::vector<cv::Mat> &input_frames);
   Ort::Value run(const cv::Mat &input_frame);
+  std::vector<Detection> decode(const Ort::Value &output_tensor,
+                                float conf_threshold = 0.25f);
+  std::vector<Detection> nms(const std::vector<Detection> &detections,
+                             float iou_threshold = 0.7f);
 };
 } // namespace onnx::yolo

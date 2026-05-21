@@ -207,7 +207,7 @@ static cv::Size parse_target_size(py::object target_size) {
   return size;
 }
 
-PYBIND11_MODULE(golf_backend, m) {
+PYBIND11_MODULE(video_processing, m) {
   m.doc() = "GolfCar Tracker C++ Backend Acceleration";
 
   m.def("check_env", &check_environment, "C++ Dependency Check Function");

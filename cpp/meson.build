@@ -36,11 +36,15 @@ pybind11_dep = dependency('pybind11')
 
 all_dependencies = [pybind11_dep, opencv_dep, onnxruntime_dep] + extra_deps
 
-core_sources = files(
+video_processing_core_sources = files(
   'src/video_processing.cpp',
 )
 
-binding_sources = files('bindings.cpp', 'src/onnx.cpp') + core_sources
+onnx_core_sources = files(
+  'src/onnx.cpp',
+)
+
+video_processing_binding_sources = files('python_bindings/video_processing.cpp') + video_processing_core_sources
 
 include_dirs = include_directories('includes')
 
@@ -48,16 +52,16 @@ include_dirs = include_directories('includes')
 # ==========================================
 # 4. Build output and install target.
 # ==========================================
-py3.extension_module('golf_backend',
-  sources: binding_sources,
+py3.extension_module('video_processing',
+  sources: video_processing_binding_sources,
   include_directories : include_dirs,
-  dependencies : all_dependencies,
+  dependencies : [pybind11_dep, opencv_dep] + extra_deps,
   cpp_args : extra_cpp_args,
   install : true,
-  install_dir : join_paths(meson.current_source_dir(), '../python')
+  install_dir : join_paths(meson.current_source_dir(), '../python/golfcar_backend')
 )
 
-test_extract_sources = files('test_extracted_frames.cpp') + core_sources
+test_extract_sources = files('test_extracted_frames.cpp') + video_processing_core_sources
 
 executable('test_extracted_frames',
            sources : test_extract_sources,
@@ -67,7 +71,7 @@ executable('test_extracted_frames',
            install : false
 )
 
-test_onnx_yolo_sources = files('test_onnx_yolo_inference.cpp', 'src/onnx.cpp') + core_sources
+test_onnx_yolo_sources = files('test_onnx_yolo_inference.cpp') + onnx_core_sources + video_processing_core_sources
 
 test_onnx_yolo_inference = executable('test_onnx_yolo_inference',
            sources : test_onnx_yolo_sources,
