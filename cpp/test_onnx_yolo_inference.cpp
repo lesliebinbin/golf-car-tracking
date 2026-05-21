@@ -163,6 +163,34 @@ void assert_nms_detections(
             << " from decoded=" << decoded.size() << std::endl;
 }
 
+void assert_decoded_batches(
+    const std::vector<std::vector<onnx::yolo::Detection>> &batch_detections,
+    std::size_t expected_batch_size, const std::string &label) {
+  if (batch_detections.size() != expected_batch_size) {
+    throw std::runtime_error(label + " decoded batch size mismatch");
+  }
+
+  for (std::size_t batch = 0; batch < batch_detections.size(); ++batch) {
+    assert_decoded_detections(
+        batch_detections[batch],
+        label + " batch[" + std::to_string(batch) + "]");
+  }
+}
+
+void assert_nms_batches(
+    const std::vector<std::vector<onnx::yolo::Detection>> &decoded,
+    const std::vector<std::vector<onnx::yolo::Detection>> &nms_detections,
+    const std::string &label) {
+  if (nms_detections.size() != decoded.size()) {
+    throw std::runtime_error(label + " NMS batch size mismatch");
+  }
+
+  for (std::size_t batch = 0; batch < decoded.size(); ++batch) {
+    assert_nms_detections(decoded[batch], nms_detections[batch],
+                          label + " batch[" + std::to_string(batch) + "]");
+  }
+}
+
 void assert_synthetic_nms(onnx::yolo::Runner &runner) {
   const std::vector<onnx::yolo::Detection> synthetic{
       {.x = 100.0f,
@@ -229,12 +257,12 @@ int main() {
         project_file("python/golf-car-static.onnx").c_str());
     Ort::Value static_output = static_runner.run(frames.front());
     assert_yolo_output(static_output, 1, "static model");
-    const std::vector<onnx::yolo::Detection> static_decoded =
+    const std::vector<std::vector<onnx::yolo::Detection>> static_decoded =
         static_runner.decode(static_output, kConfThreshold);
-    assert_decoded_detections(static_decoded, "static model");
-    const std::vector<onnx::yolo::Detection> static_nms =
+    assert_decoded_batches(static_decoded, 1, "static model");
+    const std::vector<std::vector<onnx::yolo::Detection>> static_nms =
         static_runner.nms(static_decoded, kIouThreshold);
-    assert_nms_detections(static_decoded, static_nms, "static model");
+    assert_nms_batches(static_decoded, static_nms, "static model");
     assert_synthetic_nms(static_runner);
 
     onnx::yolo::Runner dynamic_runner(
@@ -242,9 +270,12 @@ int main() {
     Ort::Value dynamic_output = dynamic_runner.run(frames);
     assert_yolo_output(dynamic_output, static_cast<int64_t>(frames.size()),
                        "dynamic model");
-    const std::vector<onnx::yolo::Detection> dynamic_decoded =
+    const std::vector<std::vector<onnx::yolo::Detection>> dynamic_decoded =
         dynamic_runner.decode(dynamic_output, kConfThreshold);
-    assert_decoded_detections(dynamic_decoded, "dynamic model");
+    assert_decoded_batches(dynamic_decoded, frames.size(), "dynamic model");
+    const std::vector<std::vector<onnx::yolo::Detection>> dynamic_nms =
+        dynamic_runner.nms(dynamic_decoded, kIouThreshold);
+    assert_nms_batches(dynamic_decoded, dynamic_nms, "dynamic model");
 
     std::cout << "YOLO ONNX inference test passed" << std::endl;
     return EXIT_SUCCESS;

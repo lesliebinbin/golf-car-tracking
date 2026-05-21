@@ -1,6 +1,3 @@
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
 #include <format>
 #include <onnxruntime_cxx_api.h>
 #include <opencv2/opencv.hpp>
@@ -11,102 +8,16 @@
 #include <string>
 #include <vector>
 
+#include "mat_numpy_converter.hpp"
 #include "video_processing.hpp"
 
 namespace py = pybind11;
+namespace converters = python_bindings;
 
 std::string check_environment() {
   std::ostringstream info;
-  info << "<GolfCar Tracker C++ Backend Acceleration>";
-  info << "\n"
-       << "<ONNX Runtime APIReady>";
-  info << std::format("\n<OpenCV Version: {}>", CV_VERSION);
+  info << std::format("<OpenCV Version: {}>", CV_VERSION);
   return info.str();
-}
-
-static py::array_t<std::uint8_t>
-frames_to_numpy_stack(const std::vector<cv::Mat> &frames) {
-  if (frames.empty()) {
-    return py::array_t<std::uint8_t>(std::vector<py::ssize_t>{0, 0, 0, 0});
-  }
-
-  const cv::Mat &first = frames.front();
-  if (first.empty()) {
-    throw std::runtime_error("First frame is empty");
-  }
-
-  if (first.depth() != CV_8U) {
-    throw std::runtime_error("Only CV_8U frames are supported");
-  }
-
-  const int rows = first.rows;
-  const int cols = first.cols;
-  const int channels = first.channels();
-
-  if (channels != 3 && channels != 1) {
-    throw std::runtime_error(
-        "Only 1-channel or 3-channel frames are supported");
-  }
-
-  for (std::size_t i = 0; i < frames.size(); ++i) {
-    const cv::Mat &f = frames[i];
-
-    if (f.empty()) {
-      throw std::runtime_error("Encountered empty frame");
-    }
-
-    if (f.rows != rows || f.cols != cols || f.channels() != channels ||
-        f.depth() != CV_8U) {
-      throw std::runtime_error("All frames must have same shape/type");
-    }
-  }
-
-  if (channels == 3) {
-    py::array_t<std::uint8_t> out({static_cast<py::ssize_t>(frames.size()),
-                                   static_cast<py::ssize_t>(rows),
-                                   static_cast<py::ssize_t>(cols),
-                                   static_cast<py::ssize_t>(3)});
-
-    auto buf = out.mutable_unchecked<4>();
-
-    for (py::ssize_t n = 0; n < static_cast<py::ssize_t>(frames.size()); ++n) {
-      const cv::Mat &src = frames[n];
-      cv::Mat contiguous = src.isContinuous() ? src : src.clone();
-
-      for (int r = 0; r < rows; ++r) {
-        const std::uint8_t *row_ptr = contiguous.ptr<std::uint8_t>(r);
-        for (int c = 0; c < cols; ++c) {
-          const int base = c * 3;
-          buf(n, r, c, 0) = row_ptr[base + 0];
-          buf(n, r, c, 1) = row_ptr[base + 1];
-          buf(n, r, c, 2) = row_ptr[base + 2];
-        }
-      }
-    }
-
-    return out;
-  }
-
-  // grayscale
-  py::array_t<std::uint8_t> out({static_cast<py::ssize_t>(frames.size()),
-                                 static_cast<py::ssize_t>(rows),
-                                 static_cast<py::ssize_t>(cols)});
-
-  auto buf = out.mutable_unchecked<3>();
-
-  for (py::ssize_t n = 0; n < static_cast<py::ssize_t>(frames.size()); ++n) {
-    const cv::Mat &src = frames[n];
-    cv::Mat contiguous = src.isContinuous() ? src : src.clone();
-
-    for (int r = 0; r < rows; ++r) {
-      const std::uint8_t *row_ptr = contiguous.ptr<std::uint8_t>(r);
-      for (int c = 0; c < cols; ++c) {
-        buf(n, r, c) = row_ptr[c];
-      }
-    }
-  }
-
-  return out;
 }
 
 static py::array extract_frames_py(const char *video_path, int frame_interval,
@@ -119,65 +30,7 @@ static py::array extract_frames_py(const char *video_path, int frame_interval,
                                               max_frames, start_offset);
   }
 
-  return frames_to_numpy_stack(frames);
-}
-
-static cv::Mat numpy_uint8_to_mat(py::handle input) {
-  auto array =
-      py::array_t<std::uint8_t,
-                  py::array::c_style | py::array::forcecast>::ensure(input);
-  if (!array) {
-    throw std::runtime_error("input_image must be a uint8 NumPy array");
-  }
-
-  const py::buffer_info info = array.request();
-  if (info.ndim != 2 && info.ndim != 3) {
-    throw std::runtime_error("input_image must have shape HxW or HxWxC");
-  }
-
-  const int rows = static_cast<int>(info.shape[0]);
-  const int cols = static_cast<int>(info.shape[1]);
-  const int channels = info.ndim == 2 ? 1 : static_cast<int>(info.shape[2]);
-
-  if (rows <= 0 || cols <= 0) {
-    throw std::runtime_error("input_image must not be empty");
-  }
-
-  if (channels != 1 && channels != 3 && channels != 4) {
-    throw std::runtime_error("input_image channels must be 1, 3, or 4");
-  }
-
-  cv::Mat mat(rows, cols, CV_MAKETYPE(CV_8U, channels), info.ptr);
-  return mat.clone();
-}
-
-static py::array_t<std::uint8_t> mat_to_numpy(const cv::Mat &mat) {
-  if (mat.empty()) {
-    return py::array_t<std::uint8_t>(std::vector<py::ssize_t>{0, 0, 0});
-  }
-
-  if (mat.depth() != CV_8U) {
-    throw std::runtime_error("Only CV_8U images can be converted to NumPy");
-  }
-
-  const int channels = mat.channels();
-  cv::Mat contiguous = mat.isContinuous() ? mat : mat.clone();
-
-  std::vector<py::ssize_t> shape;
-  if (channels == 1) {
-    shape = {static_cast<py::ssize_t>(mat.rows),
-             static_cast<py::ssize_t>(mat.cols)};
-  } else {
-    shape = {static_cast<py::ssize_t>(mat.rows),
-             static_cast<py::ssize_t>(mat.cols),
-             static_cast<py::ssize_t>(channels)};
-  }
-
-  py::array_t<std::uint8_t> out(shape);
-  std::memcpy(
-      out.mutable_data(), contiguous.data,
-      static_cast<std::size_t>(contiguous.total() * contiguous.elemSize()));
-  return out;
+  return converters::frames_to_numpy_stack(frames);
 }
 
 static cv::Size parse_target_size(py::object target_size) {
@@ -208,7 +61,7 @@ static cv::Size parse_target_size(py::object target_size) {
 }
 
 PYBIND11_MODULE(video_processing, m) {
-  m.doc() = "GolfCar Tracker C++ Backend Acceleration";
+  m.doc() = "Video Processing Acceleration";
 
   m.def("check_env", &check_environment, "C++ Dependency Check Function");
 
@@ -225,7 +78,7 @@ PYBIND11_MODULE(video_processing, m) {
       .def_property_readonly(
           "image",
           [](const video_processing::LetterBoxResult &r) {
-            return mat_to_numpy(r.image);
+            return converters::mat_to_numpy(r.image);
           },
           "The letterboxed image (numpy array)")
       .def_readwrite("scale", &video_processing::LetterBoxResult::scale,
@@ -250,7 +103,7 @@ PYBIND11_MODULE(video_processing, m) {
           "to_dict",
           [](const video_processing::LetterBoxResult &r) {
             py::dict d;
-            d["image"] = mat_to_numpy(r.image);
+            d["image"] = converters::mat_to_numpy(r.image);
             d["scale"] = r.scale;
             d["pad_x"] = r.pad_x;
             d["pad_y"] = r.pad_y;
@@ -269,7 +122,7 @@ PYBIND11_MODULE(video_processing, m) {
           "letterbox",
           [](const video_processing::ImageHandler &self, py::array input_image,
              py::object target_size) -> video_processing::LetterBoxResult {
-            cv::Mat input_mat = numpy_uint8_to_mat(input_image);
+            cv::Mat input_mat = converters::numpy_uint8_to_mat(input_image);
             cv::Size size = parse_target_size(target_size);
             return self.letterbox(input_mat, size);
           },
@@ -280,7 +133,8 @@ PYBIND11_MODULE(video_processing, m) {
           "letterbox_revert",
           [](video_processing::ImageHandler &self,
              video_processing::LetterBoxResult letterbox_result) {
-            return mat_to_numpy(self.letterbox_revert(letterbox_result));
+          return converters::mat_to_numpy(
+              self.letterbox_revert(letterbox_result));
           },
           py::arg("letterbox_result"))
 

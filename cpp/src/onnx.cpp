@@ -305,7 +305,7 @@ Ort::Value onnx::yolo::Runner::run(const std::vector<cv::Mat> &input_frames) {
   return std::move(outputs.front());
 }
 
-std::vector<onnx::yolo::Detection>
+std::vector<std::vector<onnx::yolo::Detection>>
 onnx::yolo::Runner::decode(const Ort::Value &output_tensor,
                            float conf_threshold) {
   validate_threshold(conf_threshold, "conf_threshold");
@@ -326,10 +326,13 @@ onnx::yolo::Runner::decode(const Ort::Value &output_tensor,
   const int64_t anchors = channels_first ? shape[2] : shape[1];
   const float *data = output_tensor.GetTensorData<float>();
 
-  std::vector<Detection> candidates;
-  candidates.reserve(static_cast<std::size_t>(batch_size * anchors));
+  std::vector<std::vector<Detection>> batch_detections(
+      static_cast<std::size_t>(batch_size));
 
   for (int64_t batch = 0; batch < batch_size; ++batch) {
+    std::vector<Detection> candidates;
+    candidates.reserve(static_cast<std::size_t>(anchors));
+
     for (int64_t anchor = 0; anchor < anchors; ++anchor) {
       const float x = yolo_value_at(data, shape, channels_first, batch, anchor, 0);
       const float y = yolo_value_at(data, shape, channels_first, batch, anchor, 1);
@@ -366,15 +369,16 @@ onnx::yolo::Runner::decode(const Ort::Value &output_tensor,
                             .class_id = class_id,
                             .confidence = confidence});
     }
+
+    std::ranges::copy_if(candidates,
+                         std::back_inserter(batch_detections[batch]),
+                         [conf_threshold](const Detection &detection) {
+                           return detection.confidence >= conf_threshold &&
+                                  detection.w > 0.0f && detection.h > 0.0f;
+                         });
   }
 
-  std::vector<Detection> detections;
-  std::ranges::copy_if(candidates, std::back_inserter(detections),
-                       [conf_threshold](const Detection &detection) {
-                         return detection.confidence >= conf_threshold &&
-                                detection.w > 0.0f && detection.h > 0.0f;
-                       });
-  return detections;
+  return batch_detections;
 }
 
 std::vector<onnx::yolo::Detection>
@@ -418,4 +422,20 @@ onnx::yolo::Runner::nms(const std::vector<Detection> &detections,
   }
 
   return kept;
+}
+
+std::vector<std::vector<onnx::yolo::Detection>>
+onnx::yolo::Runner::nms(
+    const std::vector<std::vector<Detection>> &batch_detections,
+    float iou_threshold) {
+  std::vector<std::vector<Detection>> result;
+  result.reserve(batch_detections.size());
+
+  std::ranges::transform(
+      batch_detections, std::back_inserter(result),
+      [this, iou_threshold](const std::vector<Detection> &detections) {
+        return nms(detections, iou_threshold);
+      });
+
+  return result;
 }

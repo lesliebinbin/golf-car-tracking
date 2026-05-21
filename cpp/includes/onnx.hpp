@@ -33,9 +33,13 @@ public:
   explicit Runner(const char *model_path);
   Ort::Value run(const std::vector<cv::Mat> &input_frames);
   Ort::Value run(const cv::Mat &input_frame);
-  std::vector<Detection> decode(const Ort::Value &output_tensor,
-                                float conf_threshold = 0.25f);
+  // Always returns batches; a single-instance tensor is batch size 1.
+  std::vector<std::vector<Detection>> decode(const Ort::Value &output_tensor,
+                                             float conf_threshold = 0.25f);
   std::vector<Detection> nms(const std::vector<Detection> &detections,
                              float iou_threshold = 0.7f);
+  std::vector<std::vector<Detection>>
+  nms(const std::vector<std::vector<Detection>> &batch_detections,
+      float iou_threshold = 0.7f);
 };
 } // namespace onnx::yolo

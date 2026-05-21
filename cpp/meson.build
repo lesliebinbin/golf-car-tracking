@@ -44,7 +44,15 @@ onnx_core_sources = files(
   'src/onnx.cpp',
 )
 
-video_processing_binding_sources = files('python_bindings/video_processing.cpp') + video_processing_core_sources
+video_processing_binding_sources = files(
+  'python_bindings/video_processing.cpp',
+  'python_bindings/mat_numpy_converter.cpp',
+) + video_processing_core_sources
+
+onnx_yolo_binding_sources = files(
+  'python_bindings/onnx_yolo.cpp',
+  'python_bindings/mat_numpy_converter.cpp',
+) + onnx_core_sources
 
 include_dirs = include_directories('includes')
 
@@ -56,6 +64,15 @@ py3.extension_module('video_processing',
   sources: video_processing_binding_sources,
   include_directories : include_dirs,
   dependencies : [pybind11_dep, opencv_dep] + extra_deps,
+  cpp_args : extra_cpp_args,
+  install : true,
+  install_dir : join_paths(meson.current_source_dir(), '../python/golfcar_backend')
+)
+
+py3.extension_module('onnx_yolo',
+  sources: onnx_yolo_binding_sources,
+  include_directories : include_dirs,
+  dependencies : all_dependencies,
   cpp_args : extra_cpp_args,
   install : true,
   install_dir : join_paths(meson.current_source_dir(), '../python/golfcar_backend')
