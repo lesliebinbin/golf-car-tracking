@@ -12,6 +12,7 @@
 #include <vector>
 #include <yaml-cpp/yaml.h>
 
+#include "tracker.hpp"
 #include "video_processing.hpp"
 
 namespace {
@@ -48,6 +49,7 @@ struct FrameMetadata {
 
 struct TrackRecord {
   int frame_index;
+  std::size_t track_id;
   double timestamp;
   float center_x;
   float center_y;
@@ -230,32 +232,18 @@ float clamp_float(float value, float lower, float upper) {
   return std::min(std::max(value, lower), upper);
 }
 
-TrackRecord
-detection_to_track_record(const onnx::yolo::Detection &detection,
-                          const video_processing::LetterBoxResult &letterbox,
-                          const FrameMetadata &metadata, int frame_index,
-                          double timestamp) {
-  float center_x =
-      (detection.x - static_cast<float>(letterbox.pad_x)) / letterbox.scale;
-  float center_y =
-      (detection.y - static_cast<float>(letterbox.pad_y)) / letterbox.scale;
-  float width = detection.w / letterbox.scale;
-  float height = detection.h / letterbox.scale;
-
-  center_x =
-      clamp_float(center_x, 0.0f, static_cast<float>(metadata.width - 1));
-  center_y =
-      clamp_float(center_y, 0.0f, static_cast<float>(metadata.height - 1));
-  width = clamp_float(width, 0.0f, static_cast<float>(metadata.width));
-  height = clamp_float(height, 0.0f, static_cast<float>(metadata.height));
-
+TrackRecord track_to_track_record(
+    const byte_track::BYTETracker::STrackPtr &track, int frame_index,
+    double timestamp) {
+  const byte_track::Rect<float> &rect = track->getRect();
   return {.frame_index = frame_index,
+          .track_id = track->getTrackId(),
           .timestamp = timestamp,
-          .center_x = center_x,
-          .center_y = center_y,
-          .confidence = detection.confidence,
-          .bbox = cv::Rect2f{center_x - width / 2.0f, center_y - height / 2.0f,
-                             width, height}};
+          .center_x = rect.x() + rect.width() / 2.0f,
+          .center_y = rect.y() + rect.height() / 2.0f,
+          .confidence = track->getScore(),
+          .bbox = cv::Rect2f{rect.x(), rect.y(), rect.width(),
+                             rect.height()}};
 }
 
 void draw_detection(cv::Mat &frame, const TrackRecord &record) {
@@ -273,7 +261,12 @@ void draw_detection(cv::Mat &frame, const TrackRecord &record) {
   cv::rectangle(frame, cv::Point{x1, y1}, cv::Point{x2, y2},
                 cv::Scalar{0, 255, 0}, 2);
   cv::circle(frame, center, 4, cv::Scalar{0, 0, 255}, -1);
-  cv::putText(frame, std::format("Golf Car {:.2f}", record.confidence),
+  const std::string label =
+      record.track_id > 0
+          ? std::format("Golf Car #{} {:.2f}", record.track_id,
+                        record.confidence)
+          : std::format("Golf Car {:.2f}", record.confidence);
+  cv::putText(frame, label,
               cv::Point{x1, std::max(20, y1 - 8)}, cv::FONT_HERSHEY_SIMPLEX,
               0.6, cv::Scalar{0, 255, 0}, 2, cv::LINE_AA);
 }
@@ -437,7 +430,8 @@ int seek_video(cv::VideoCapture &capture, int current_frame_index,
 std::vector<TrackRecord> detect_current_records(
     onnx::yolo::Runner &runner, const cv::Mat &frame,
     video_processing::ImageHandler &image_handler, const TrackerConfig &config,
-    const FrameMetadata &metadata, int frame_index, double timestamp) {
+    const FrameMetadata &metadata, int frame_index, double timestamp,
+    tracker::ObjectMovement &object_movement) {
   video_processing::LetterBoxResult letterbox;
   cv::Mat model_ready = make_model_ready_frame(
       frame, image_handler, config.model_image_size, letterbox);
@@ -452,89 +446,117 @@ std::vector<TrackRecord> detect_current_records(
     return records;
   }
 
-  records.reserve(nms_detections.front().size());
-  std::ranges::transform(nms_detections.front(), std::back_inserter(records),
-                         [&](const onnx::yolo::Detection &detection) {
-                           return detection_to_track_record(
-                               detection, letterbox, metadata, frame_index,
-                               timestamp);
+  std::vector<byte_track::Object> objects = object_movement.detection_to_objects(
+      nms_detections.front(), metadata.height, metadata.width, letterbox.pad_x,
+      letterbox.pad_y, letterbox.scale);
+  std::vector<byte_track::BYTETracker::STrackPtr> tracks =
+      object_movement.update(objects);
+
+  records.reserve(tracks.size());
+  std::ranges::transform(tracks, std::back_inserter(records),
+                         [&](const byte_track::BYTETracker::STrackPtr &track) {
+                           return track_to_track_record(track, frame_index,
+                                                        timestamp);
                          });
   return records;
 }
 
-int run_visualisation(const TrackerConfig &config) {
-  cv::VideoCapture capture{config.video_path.string()};
-  if (!capture.isOpened()) {
-    throw std::runtime_error("Failed to open video: " +
-                             config.video_path.string());
+class TrackerPlayer {
+private:
+  TrackerConfig config;
+  bool initialized = false;
+
+public:
+  void init_config(const std::filesystem::path &config_path) {
+    config = load_config(config_path);
+    initialized = true;
   }
 
-  const FrameMetadata metadata = read_metadata(capture, config.video_path);
-  cv::VideoWriter writer = create_writer(config, metadata);
-  onnx::yolo::Runner runner{config.model_path.string().c_str()};
-  video_processing::ImageHandler image_handler;
-  std::deque<cv::Mat> overlay_buffer;
-
-  const int delay_ms =
-      std::max(1, static_cast<int>(std::round(1000.0 / metadata.fps)));
-  bool paused = false;
-  int frame_index = 0;
-  int record_count = 0;
-
-  cv::namedWindow(kWindowName, cv::WINDOW_NORMAL);
-  while (true) {
-    cv::Mat frame;
-    if (!capture.read(frame) || frame.empty()) {
-      break;
+  int play() const {
+    if (!initialized) {
+      throw std::runtime_error("TrackerPlayer config has not been initialized");
     }
 
-    std::vector<TrackRecord> current_records;
-    if (frame_index % config.frame_stride == 0) {
-      const double timestamp =
-          frame_timestamp(capture, frame_index, metadata.fps);
-      current_records =
-          detect_current_records(runner, frame, image_handler, config, metadata,
-                                 frame_index, timestamp);
-      record_count += static_cast<int>(current_records.size());
+    cv::VideoCapture capture{config.video_path.string()};
+    if (!capture.isOpened()) {
+      throw std::runtime_error("Failed to open video: " +
+                               config.video_path.string());
     }
 
-    cv::Mat annotated = annotate_frame(frame, current_records, metadata, config,
-                                       overlay_buffer);
-    cv::imshow(kWindowName, annotated);
-    if (writer.isOpened()) {
-      writer.write(annotated);
+    const FrameMetadata metadata = read_metadata(capture, config.video_path);
+    cv::VideoWriter writer = create_writer(config, metadata);
+    onnx::yolo::Runner runner{config.model_path.string().c_str()};
+    video_processing::ImageHandler image_handler;
+    byte_track::BYTETracker byte_tracker{
+        static_cast<int>(std::round(metadata.fps)), config.buffer_size};
+    tracker::ObjectMovement object_movement{byte_tracker, metadata.height,
+                                            metadata.width};
+    std::deque<cv::Mat> overlay_buffer;
+
+    const int delay_ms =
+        std::max(1, static_cast<int>(std::round(1000.0 / metadata.fps)));
+    bool paused = false;
+    int frame_index = 0;
+    int record_count = 0;
+
+    cv::namedWindow(kWindowName, cv::WINDOW_NORMAL);
+    while (true) {
+      cv::Mat frame;
+      if (!capture.read(frame) || frame.empty()) {
+        break;
+      }
+
+      std::vector<TrackRecord> current_records;
+      if (frame_index % config.frame_stride == 0) {
+        const double timestamp =
+            frame_timestamp(capture, frame_index, metadata.fps);
+        current_records = detect_current_records(
+            runner, frame, image_handler, config, metadata, frame_index,
+            timestamp, object_movement);
+        record_count += static_cast<int>(current_records.size());
+      }
+
+      cv::Mat annotated =
+          annotate_frame(frame, current_records, metadata, config,
+                         overlay_buffer);
+      cv::imshow(kWindowName, annotated);
+      if (writer.isOpened()) {
+        writer.write(annotated);
+      }
+
+      const PlayerAction action =
+          wait_for_player(delay_ms, paused, metadata.fps);
+      paused = action.paused;
+      if (action.should_quit) {
+        break;
+      }
+
+      if (action.seek_delta != 0) {
+        frame_index = seek_video(capture, frame_index, action.seek_delta,
+                                 metadata.total_frames);
+        overlay_buffer.clear();
+      } else {
+        ++frame_index;
+      }
     }
 
-    const PlayerAction action = wait_for_player(delay_ms, paused, metadata.fps);
-    paused = action.paused;
-    if (action.should_quit) {
-      break;
+    cv::destroyWindow(kWindowName);
+    for (int i = 0; i < 5; ++i) {
+      cv::waitKey(1);
     }
 
-    if (action.seek_delta != 0) {
-      frame_index = seek_video(capture, frame_index, action.seek_delta,
-                               metadata.total_frames);
-      overlay_buffer.clear();
-    } else {
-      ++frame_index;
-    }
+    return record_count;
   }
-
-  cv::destroyWindow(kWindowName);
-  for (int i = 0; i < 5; ++i) {
-    cv::waitKey(1);
-  }
-
-  return record_count;
-}
+};
 
 } // namespace
 
 int main(int argc, char **argv) {
   try {
     const std::filesystem::path config_path = resolve_config_path(argc, argv);
-    const TrackerConfig config = load_config(config_path);
-    const int record_count = run_visualisation(config);
+    TrackerPlayer player;
+    player.init_config(config_path);
+    const int record_count = player.play();
     std::cout << "TRACK_VISUALISATION_DONE records=" << record_count
               << std::endl;
     return EXIT_SUCCESS;

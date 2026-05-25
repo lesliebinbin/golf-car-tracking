@@ -102,8 +102,7 @@ bool parse_dynamic_batch_metadata(const Ort::Session &session,
   return shape_is_dynamic;
 }
 
-int64_t parse_batch_metadata(const Ort::Session &session,
-                             int64_t shape_batch) {
+int64_t parse_batch_metadata(const Ort::Session &session, int64_t shape_batch) {
   std::optional<std::string> batch = lookup_metadata(session, "batch");
   if (!batch) {
     return shape_batch;
@@ -174,7 +173,8 @@ bool is_channels_first_yolo_output(const std::vector<int64_t> &shape) {
   const bool dim1_can_be_values = shape[1] >= 5;
   const bool dim2_can_be_values = shape[2] >= 5;
   if (!dim1_can_be_values && !dim2_can_be_values) {
-    throw std::invalid_argument("YOLO output tensor must have at least 5 values");
+    throw std::invalid_argument(
+        "YOLO output tensor must have at least 5 values");
   }
 
   if (dim1_can_be_values && dim2_can_be_values) {
@@ -187,11 +187,10 @@ bool is_channels_first_yolo_output(const std::vector<int64_t> &shape) {
 float yolo_value_at(const float *data, const std::vector<int64_t> &shape,
                     bool channels_first, int64_t batch, int64_t anchor,
                     int64_t value_index) {
-  return channels_first
-             ? data[batch * shape[1] * shape[2] + value_index * shape[2] +
-                    anchor]
-             : data[batch * shape[1] * shape[2] + anchor * shape[2] +
-                    value_index];
+  return channels_first ? data[batch * shape[1] * shape[2] +
+                               value_index * shape[2] + anchor]
+                        : data[batch * shape[1] * shape[2] + anchor * shape[2] +
+                               value_index];
 }
 
 float center_box_iou(const onnx::yolo::Detection &a,
@@ -262,7 +261,8 @@ onnx::yolo::Runner::Runner(const char *model_path)
   input_width = shape[3] > 0 ? static_cast<int>(shape[3]) : metadata_width;
 
   if (input_height <= 0 || input_width <= 0) {
-    throw std::runtime_error("YOLO ONNX input height and width must be positive");
+    throw std::runtime_error(
+        "YOLO ONNX input height and width must be positive");
   }
 }
 
@@ -294,9 +294,8 @@ Ort::Value onnx::yolo::Runner::run(const std::vector<cv::Mat> &input_frames) {
 
   const char *input_names[] = {input_name.c_str()};
   const char *output_names[] = {output_name.c_str()};
-  std::vector<Ort::Value> outputs =
-      session.Run(Ort::RunOptions{nullptr}, input_names, &input_tensor, 1,
-                  output_names, 1);
+  std::vector<Ort::Value> outputs = session.Run(
+      Ort::RunOptions{nullptr}, input_names, &input_tensor, 1, output_names, 1);
 
   if (outputs.empty()) {
     throw std::runtime_error("ONNX Runtime returned no outputs");
@@ -334,19 +333,25 @@ onnx::yolo::Runner::decode(const Ort::Value &output_tensor,
     candidates.reserve(static_cast<std::size_t>(anchors));
 
     for (int64_t anchor = 0; anchor < anchors; ++anchor) {
-      const float x = yolo_value_at(data, shape, channels_first, batch, anchor, 0);
-      const float y = yolo_value_at(data, shape, channels_first, batch, anchor, 1);
-      const float w = yolo_value_at(data, shape, channels_first, batch, anchor, 2);
-      const float h = yolo_value_at(data, shape, channels_first, batch, anchor, 3);
+      const float x =
+          yolo_value_at(data, shape, channels_first, batch, anchor, 0);
+      const float y =
+          yolo_value_at(data, shape, channels_first, batch, anchor, 1);
+      const float w =
+          yolo_value_at(data, shape, channels_first, batch, anchor, 2);
+      const float h =
+          yolo_value_at(data, shape, channels_first, batch, anchor, 3);
 
       int class_id = 0;
-      float confidence = yolo_value_at(data, shape, channels_first, batch, anchor, 4);
+      float confidence =
+          yolo_value_at(data, shape, channels_first, batch, anchor, 4);
       if (values > 5) {
-        std::vector<int64_t> class_offsets(static_cast<std::size_t>(values - 4));
+        std::vector<int64_t> class_offsets(
+            static_cast<std::size_t>(values - 4));
         std::iota(class_offsets.begin(), class_offsets.end(), 0);
 
-        const auto best = std::ranges::max_element(
-            class_offsets, {}, [&](int64_t offset) {
+        const auto best =
+            std::ranges::max_element(class_offsets, {}, [&](int64_t offset) {
               return yolo_value_at(data, shape, channels_first, batch, anchor,
                                    4 + offset);
             });
@@ -387,17 +392,15 @@ onnx::yolo::Runner::nms(const std::vector<Detection> &detections,
   validate_threshold(iou_threshold, "iou_threshold");
 
   std::vector<Detection> ordered;
-  std::ranges::copy_if(detections, std::back_inserter(ordered),
-                       [](const Detection &detection) {
-                         const std::array values_to_check{
-                             detection.x, detection.y, detection.w,
-                             detection.h, detection.confidence};
-                         return std::ranges::all_of(values_to_check,
-                                                    [](float value) {
-                                                      return std::isfinite(value);
-                                                    }) &&
-                                detection.w > 0.0f && detection.h > 0.0f;
-                       });
+  std::ranges::copy_if(
+      detections, std::back_inserter(ordered), [](const Detection &detection) {
+        const std::array values_to_check{detection.x, detection.y, detection.w,
+                                         detection.h, detection.confidence};
+        return std::ranges::all_of(
+                   values_to_check,
+                   [](float value) { return std::isfinite(value); }) &&
+               detection.w > 0.0f && detection.h > 0.0f;
+      });
 
   std::ranges::sort(ordered, [](const Detection &a, const Detection &b) {
     return a.confidence > b.confidence;
@@ -424,8 +427,7 @@ onnx::yolo::Runner::nms(const std::vector<Detection> &detections,
   return kept;
 }
 
-std::vector<std::vector<onnx::yolo::Detection>>
-onnx::yolo::Runner::nms(
+std::vector<std::vector<onnx::yolo::Detection>> onnx::yolo::Runner::nms(
     const std::vector<std::vector<Detection>> &batch_detections,
     float iou_threshold) {
   std::vector<std::vector<Detection>> result;
@@ -438,4 +440,14 @@ onnx::yolo::Runner::nms(
       });
 
   return result;
+}
+
+byte_track::Object onnx::yolo::Runner::detection_to_object(
+    const onnx::yolo::Detection &detection) {
+  return {
+      {detection.x - detection.w / 2.0f, detection.y - detection.h / 2.0f,
+       detection.w, detection.h},
+      detection.class_id,
+      detection.confidence,
+  };
 }

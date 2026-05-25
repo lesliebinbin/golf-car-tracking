@@ -1,0 +1,11 @@
+model_path: ../python/golf-car-dynamic.onnx
+video_path: ../python/output.mp4
+conf_threshold: 0.25
+iou_threshold: 0.7
+canvas_size: 180
+canvas_margin: 16
+buffer_size: 20
+decay_strategy: simple_average
+output_path: something.mp4
+frame_stride: 1
+model_image_size: 640

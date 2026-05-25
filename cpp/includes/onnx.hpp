@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ByteTrack/BYTETracker.h>
 #include <onnxruntime_cxx_api.h>
 #include <opencv2/opencv.hpp>
 #include <string>
@@ -41,5 +42,6 @@ public:
   std::vector<std::vector<Detection>>
   nms(const std::vector<std::vector<Detection>> &batch_detections,
       float iou_threshold = 0.7f);
+  byte_track::Object detection_to_object(const Detection &detection);
 };
 } // namespace onnx::yolo
