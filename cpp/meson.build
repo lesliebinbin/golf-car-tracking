@@ -45,6 +45,7 @@ bytetrack_dep = dependency('bytetrack')
 yolos_cpp_dep = dependency('yolos_cpp')
 
 
+
 all_dependencies = [pybind11_dep, opencv_dep, onnxruntime_dep, bytetrack_dep] + extra_deps
 
 video_processing_core_sources = files('src/video_processing.cpp')
