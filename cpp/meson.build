@@ -43,6 +43,8 @@ pybind11_dep = dependency('pybind11')
 yaml_cpp_dep = dependency('yaml-cpp')
 bytetrack_dep = dependency('bytetrack')
 yolos_cpp_dep = dependency('yolos_cpp')
+libtorch_dep = dependency('Torch', method : 'cmake', required : true)
+
 
 
 
@@ -124,7 +126,7 @@ movement_track = executable(
     'movement_track',
     sources: movement_track_sources,
     include_directories: include_dirs,
-    dependencies: [opencv_dep, onnxruntime_dep, yaml_cpp_dep, bytetrack_dep] + extra_deps,
+    dependencies: [opencv_dep, onnxruntime_dep, yaml_cpp_dep, bytetrack_dep, libtorch_dep] + extra_deps,
     cpp_args: extra_cpp_args,
     install: false,
 )
