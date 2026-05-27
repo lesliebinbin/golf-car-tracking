@@ -32,7 +32,9 @@ std::filesystem::path current_source_dir(
 }
 
 std::string project_file(const std::filesystem::path &relative_path) {
-  return (current_source_dir() / ".." / relative_path).lexically_normal().string();
+  return (current_source_dir() / ".." / ".." / relative_path)
+      .lexically_normal()
+      .string();
 }
 
 cv::Mat read_image(const std::string &path) {
@@ -242,7 +244,7 @@ void assert_synthetic_nms(onnx::yolo::Runner &runner) {
 int main() {
   try {
     const std::vector<std::string> image_paths = {
-        project_file("python/video_frames/frame_0138.jpg"),
+        project_file("python/video_frames/frame_0140.jpg"),
         project_file("python/video_frames/frame_0139.jpg"),
         project_file("python/video_frames/frame_0148.jpg"),
     };

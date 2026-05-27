@@ -20,7 +20,10 @@ std::filesystem::path project_root() {
     source_path = executable_dir / source_path;
   }
 
-  return std::filesystem::weakly_canonical(source_path).parent_path().parent_path();
+  return std::filesystem::weakly_canonical(source_path)
+      .parent_path()
+      .parent_path()
+      .parent_path();
 }
 
 std::filesystem::path resolve_project_path(const std::string &path) {

@@ -109,7 +109,7 @@ py3.extension_module(
     ),
 )
 
-test_extract_sources = files('test_extracted_frames.cpp') + video_processing_core_sources
+test_extract_sources = files('tests/extracted_frames.cpp') + video_processing_core_sources
 
 executable(
     'test_extracted_frames',
@@ -120,7 +120,7 @@ executable(
     install: false,
 )
 
-test_onnx_yolo_sources = files('test_onnx_yolo_inference.cpp') + onnx_core_sources + video_processing_core_sources
+test_onnx_yolo_sources = files('tests/onnx_yolo_inference.cpp') + onnx_core_sources + video_processing_core_sources
 
 test_onnx_yolo_inference = executable(
     'test_onnx_yolo_inference',
@@ -144,7 +144,7 @@ movement_track = executable(
 
 smoke_test_yolo_torchscript = executable(
     'smoke_test_yolo_torchscript',
-    sources: files('smoke_test_yolo_torchscript.cpp'),
+    sources: files('tests/yolo_torchscript.cpp'),
     dependencies: [opencv_dep, libtorch_dep] + extra_deps,
     cpp_args: extra_cpp_args,
     install: false,
