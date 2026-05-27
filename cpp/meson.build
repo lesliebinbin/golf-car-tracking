@@ -43,7 +43,25 @@ pybind11_dep = dependency('pybind11')
 yaml_cpp_dep = dependency('yaml-cpp')
 bytetrack_dep = dependency('bytetrack')
 yolos_cpp_dep = dependency('yolos_cpp')
-libtorch_dep = dependency('Torch', method : 'cmake', required : true)
+libtorch_root = get_option('libtorch_root')
+if libtorch_root == ''
+    error('Set LibTorch path with -Dlibtorch_root=/path/to/libtorch')
+endif
+
+libtorch_dep = dependency(
+    'Torch',
+    method: 'cmake',
+    cmake_args: ['-DCMAKE_PREFIX_PATH=' + libtorch_root],
+    required: true,
+)
+cpp_compiler = meson.get_compiler('cpp')
+libtorch_lib_dir = libtorch_root / 'lib'
+torch_cpu_dep = cpp_compiler.find_library('torch_cpu', dirs: libtorch_lib_dir, required: true)
+torch_global_deps_dep = cpp_compiler.find_library(
+    'torch_global_deps',
+    dirs: libtorch_lib_dir,
+    required: true,
+)
 
 
 
@@ -127,6 +145,14 @@ movement_track = executable(
     sources: movement_track_sources,
     include_directories: include_dirs,
     dependencies: [opencv_dep, onnxruntime_dep, yaml_cpp_dep, bytetrack_dep, libtorch_dep] + extra_deps,
+    cpp_args: extra_cpp_args,
+    install: false,
+)
+
+smoke_test_yolo_torchscript = executable(
+    'smoke_test_yolo_torchscript',
+    sources: files('smoke_test_yolo_torchscript.cpp'),
+    dependencies: [opencv_dep, libtorch_dep, torch_cpu_dep, torch_global_deps_dep] + extra_deps,
     cpp_args: extra_cpp_args,
     install: false,
 )

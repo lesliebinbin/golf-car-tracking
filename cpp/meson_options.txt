@@ -1,0 +1,6 @@
+option(
+    'libtorch_root',
+    type: 'string',
+    value: '',
+    description: 'Path to the LibTorch root directory, e.g. /home/lesliebinbin/libtorch',
+)
