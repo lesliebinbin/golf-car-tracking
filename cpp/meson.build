@@ -6,8 +6,9 @@ project(
 )
 
 py_mod = import('python')
+cpp_source_dir = meson.current_source_dir()
 uv_python_path = join_paths(
-    meson.current_source_dir(),
+    cpp_source_dir,
     '../python/.venv/bin/python',
 )
 
@@ -27,6 +28,8 @@ message('=====================================================')
 sys_name = host_machine.system()
 extra_deps = []
 extra_cpp_args = []
+repo_root = join_paths(cpp_source_dir, '..')
+extra_cpp_args += ['-DGOLFCAR_REPO_ROOT="@0@"'.format(repo_root)]
 
 if sys_name == 'darwin'
     extra_deps += dependency(
@@ -52,6 +55,7 @@ libtorch_dep = dependency(
     'Torch',
     method: 'cmake',
     modules: ['torch', 'torch_cpu'],
+    cmake_module_path: [libtorch_root / 'share/cmake/Torch'],
     cmake_args: ['-DCMAKE_PREFIX_PATH=' + libtorch_root],
     required: true,
 )
@@ -65,87 +69,11 @@ video_processing_core_sources = files('src/video_processing.cpp')
 
 onnx_core_sources = files('src/onnx.cpp')
 
-video_processing_binding_sources = files(
-    'python_bindings/mat_numpy_converter.cpp',
-    'python_bindings/video_processing.cpp',
-) + video_processing_core_sources
-
-onnx_yolo_binding_sources = files(
-    'python_bindings/mat_numpy_converter.cpp',
-    'python_bindings/onnx_yolo.cpp',
-) + onnx_core_sources
-
 tracker_sources = files('src/tracker.cpp')
 
 include_dirs = include_directories('includes')
+python_backend_install_dir = join_paths(cpp_source_dir, '../python/golfcar_backend')
 
-
-# ==========================================
-# 4. Build output and install target.
-# ==========================================
-py3.extension_module(
-    'video_processing',
-    sources: video_processing_binding_sources,
-    include_directories: include_dirs,
-    dependencies: [pybind11_dep, opencv_dep] + extra_deps,
-    cpp_args: extra_cpp_args,
-    install: true,
-    install_dir: join_paths(
-        meson.current_source_dir(),
-        '../python/golfcar_backend',
-    ),
-)
-
-py3.extension_module(
-    'onnx_yolo',
-    sources: onnx_yolo_binding_sources,
-    include_directories: include_dirs,
-    dependencies: all_dependencies,
-    cpp_args: extra_cpp_args,
-    install: true,
-    install_dir: join_paths(
-        meson.current_source_dir(),
-        '../python/golfcar_backend',
-    ),
-)
-
-test_extract_sources = files('tests/extracted_frames.cpp') + video_processing_core_sources
-
-executable(
-    'test_extracted_frames',
-    sources: test_extract_sources,
-    include_directories: include_dirs,
-    dependencies: [opencv_dep],
-    cpp_args: extra_cpp_args,
-    install: false,
-)
-
-test_onnx_yolo_sources = files('tests/onnx_yolo_inference.cpp') + onnx_core_sources + video_processing_core_sources
-
-test_onnx_yolo_inference = executable(
-    'test_onnx_yolo_inference',
-    sources: test_onnx_yolo_sources,
-    include_directories: include_dirs,
-    dependencies: [opencv_dep, onnxruntime_dep, bytetrack_dep] + extra_deps,
-    cpp_args: extra_cpp_args,
-    install: false,
-)
-
-movement_track_sources = files('movement_track.cpp') + onnx_core_sources + video_processing_core_sources + tracker_sources
-
-movement_track = executable(
-    'movement_track',
-    sources: movement_track_sources,
-    include_directories: include_dirs,
-    dependencies: [opencv_dep, onnxruntime_dep, yaml_cpp_dep, bytetrack_dep, libtorch_dep] + extra_deps,
-    cpp_args: extra_cpp_args,
-    install: false,
-)
-
-smoke_test_yolo_torchscript = executable(
-    'smoke_test_yolo_torchscript',
-    sources: files('tests/yolo_torchscript.cpp'),
-    dependencies: [opencv_dep, libtorch_dep] + extra_deps,
-    cpp_args: extra_cpp_args,
-    install: false,
-)
+subdir('python_bindings')
+subdir('tests')
+subdir('applications')

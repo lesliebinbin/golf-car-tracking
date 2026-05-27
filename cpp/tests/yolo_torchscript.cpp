@@ -13,6 +13,9 @@ constexpr int kModelImageSize = 640;
 constexpr float kConfThreshold = 0.25f;
 
 std::filesystem::path project_root() {
+#ifdef GOLFCAR_REPO_ROOT
+  return std::filesystem::path{GOLFCAR_REPO_ROOT}.lexically_normal();
+#else
   std::filesystem::path source_path{__FILE__};
   if (source_path.is_relative()) {
     const std::filesystem::path executable_dir =
@@ -24,6 +27,7 @@ std::filesystem::path project_root() {
       .parent_path()
       .parent_path()
       .parent_path();
+#endif
 }
 
 std::filesystem::path resolve_project_path(const std::string &path) {

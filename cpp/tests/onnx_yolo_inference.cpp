@@ -32,9 +32,15 @@ std::filesystem::path current_source_dir(
 }
 
 std::string project_file(const std::filesystem::path &relative_path) {
+#ifdef GOLFCAR_REPO_ROOT
+  return (std::filesystem::path{GOLFCAR_REPO_ROOT} / relative_path)
+      .lexically_normal()
+      .string();
+#else
   return (current_source_dir() / ".." / ".." / relative_path)
       .lexically_normal()
       .string();
+#endif
 }
 
 cv::Mat read_image(const std::string &path) {
