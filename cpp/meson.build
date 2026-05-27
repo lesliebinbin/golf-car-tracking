@@ -54,7 +54,7 @@ endif
 libtorch_dep = dependency(
     'Torch',
     method: 'cmake',
-    modules: ['torch', 'torch_cpu'],
+    modules: ['torch', 'torch_cuda'],
     cmake_module_path: [libtorch_root / 'share/cmake/Torch'],
     cmake_args: ['-DCMAKE_PREFIX_PATH=' + libtorch_root],
     required: true,

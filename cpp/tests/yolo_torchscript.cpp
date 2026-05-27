@@ -153,9 +153,8 @@ void assert_yolo_detect_output(const torch::Tensor &output) {
 
   std::cout << "Output shape: ";
   print_shape(shape);
-  std::cout << "\nMax score: " << max_score
-            << "\nScores >= " << kConfThreshold << ": " << confident_count
-            << std::endl;
+  std::cout << "\nMax score: " << max_score << "\nScores >= " << kConfThreshold
+            << ": " << confident_count << std::endl;
 }
 
 } // namespace
@@ -164,9 +163,8 @@ int main(int argc, char **argv) {
   try {
     const std::filesystem::path model_path = resolve_project_path(
         argc > 1 ? argv[1] : "python/golf-car.torchscript");
-    const std::filesystem::path image_path =
-        resolve_project_path(argc > 2 ? argv[2]
-                                      : "python/video_frames/frame_0139.jpg");
+    const std::filesystem::path image_path = resolve_project_path(
+        argc > 2 ? argv[2] : "python/video_frames/frame_0139.jpg");
 
     if (!std::filesystem::is_regular_file(model_path)) {
       throw std::runtime_error("Model file does not exist: " +

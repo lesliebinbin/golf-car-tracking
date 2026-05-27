@@ -27,3 +27,17 @@ smoke_test_yolo_torchscript = executable(
     cpp_args: extra_cpp_args,
     install: false,
 )
+
+torch_cpp_01 = executable(
+    'torch_cpp_01',
+    sources: files('torch_cpp_01.cpp'),
+    dependencies: [libtorch_dep] + extra_deps,
+    cpp_args: extra_cpp_args,
+    link_args: [
+        '-Wl,--no-as-needed',
+        libtorch_root / 'lib/libtorch_cuda.so',
+        libtorch_root / 'lib/libc10_cuda.so',
+        '-Wl,--as-needed',
+    ],
+    install: false,
+)
