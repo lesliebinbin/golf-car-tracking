@@ -7,10 +7,7 @@ project(
 
 py_mod = import('python')
 cpp_source_dir = meson.current_source_dir()
-uv_python_path = join_paths(
-    cpp_source_dir,
-    '../python/.venv/bin/python',
-)
+uv_python_path = join_paths(cpp_source_dir, '../python/.venv/bin/python')
 
 # Pass the virtualenv Python path directly to find_installation.
 py3 = py_mod.find_installation(uv_python_path)
@@ -30,13 +27,14 @@ extra_deps = []
 extra_cpp_args = []
 repo_root = join_paths(cpp_source_dir, '..')
 extra_cpp_args += ['-DGOLFCAR_REPO_ROOT="@0@"'.format(repo_root)]
-
+torch_accelerator = 'torch_cuda'
 if sys_name == 'darwin'
     extra_deps += dependency(
         'appleframeworks',
         modules: ['Cocoa', 'CoreVideo', 'CoreMedia', 'AVFoundation'],
     )
     extra_cpp_args += ['-march=native']
+    torch_accelerator = 'torch_cpu'
 endif
 
 
@@ -54,7 +52,7 @@ endif
 libtorch_dep = dependency(
     'Torch',
     method: 'cmake',
-    modules: ['torch', 'torch_cuda'],
+    modules: ['torch', torch_accelerator],
     cmake_module_path: [libtorch_root / 'share/cmake/Torch'],
     cmake_args: ['-DCMAKE_PREFIX_PATH=' + libtorch_root],
     required: true,
@@ -72,7 +70,10 @@ onnx_core_sources = files('src/onnx.cpp')
 tracker_sources = files('src/tracker.cpp')
 
 include_dirs = include_directories('includes')
-python_backend_install_dir = join_paths(cpp_source_dir, '../python/golfcar_backend')
+python_backend_install_dir = join_paths(
+    cpp_source_dir,
+    '../python/golfcar_backend',
+)
 
 subdir('python_bindings')
 subdir('tests')
